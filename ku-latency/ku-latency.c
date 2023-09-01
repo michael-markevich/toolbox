@@ -58,6 +58,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <string.h>
 #include <byteswap.h>
+#include <time.h>
 
 #include <signal.h>
 
@@ -89,14 +90,14 @@ static bool                keepRunning;
 void Usage(const char * const progName)
 {
     printf("\n");
-    printf("Usage: %s [-i IP address] [-e ethx] [-p port]\n", progName);
+    printf("Usage: %s [-i IP address] [-e ethx] [-p port] [-n packets]\n", progName);
     printf("\n");
     printf("       -h          Help.\n");
     printf("       -i          Specifies IP address of interface you want to listen to.\n");
     printf("       -e          Specifies the ethernet interface name you want to listen to.\n");
     printf("       -p          Specifies port number of packets you want to see.\n");
-    printf("       -l          Log (RTP Sequence Number, Kernel Latency) to file for each packet.\n");
     printf("       -n          Stop after N packets (default N=3000).\n");
+    printf("       -l          Log (RTP Sequence Number, Kernel Latency) to file for each packet.\n");
     printf("       -v          Verbose, print kernel latency stats to stdout.\n");
     printf("\n");
     printf("If no option is specified (they are all optional), then the program\n");
@@ -147,7 +148,7 @@ int main(int argc, char **argv)
     }
 
     /* Process cmdline opts. */
-    char *shortOpts = "hi:e:p:v:n:l";
+    char *shortOpts = "i:e:p:n:lvh";
     int   getoptRet;
     int verbose = false;
     int log = false;
@@ -183,7 +184,7 @@ int main(int argc, char **argv)
                 stop_num_packets = atoi(optarg);
                 break;
             case 'v':
-                verbose = true; 
+                verbose = true;
                 break;
             case 'h':
             case '?':
@@ -312,7 +313,7 @@ int main(int argc, char **argv)
             timediff = (time_user.tv_sec - time_kernel.tv_sec) * 1000000 +
                        (time_user.tv_usec - time_kernel.tv_usec);
 
-            fprintf(logfile, "%d %d\n", seq_num, timediff);
+            fprintf(logfile, "%d\t%d us\n", seq_num, timediff);
         }
 
         if (rc > 0)
@@ -325,12 +326,18 @@ int main(int argc, char **argv)
     if (log) {
         fclose(logfile);
 
-        char *str_logfile = calloc(1024, sizeof(char));
-        sprintf(str_logfile, "ku-latency.log");
-        FILE *real_logfile = fopen(str_logfile, "w+");
+        time_t current_time;
+        time(&current_time);
 
-        fwrite(logbuffer, sizeof(char), strlen(logbuffer), real_logfile);
-        fclose(real_logfile);
+        char *str_logfile = calloc(4096, sizeof(char));
+        snprintf(str_logfile, 4096, "ku-latency.%ld.log", (long)current_time);
+        FILE *real_logfile = fopen(str_logfile, "w+");
+        if (real_logfile != NULL) {
+            fwrite(logbuffer, sizeof(char), strlen(logbuffer), real_logfile);
+            fclose(real_logfile);
+        }
+
+        free(str_logfile);
     }
 
 bind_failed:
