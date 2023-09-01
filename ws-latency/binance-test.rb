@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
 require 'websocket-client-simple'
 require 'json'
@@ -8,6 +9,7 @@ symbol = "btcusdt"
 stream_url = "wss://stream.binance.com/ws/#{symbol}@trade"
 
 latency_samples = []
+i = 0
 
 ws = WebSocket::Client::Simple.connect(stream_url)
 
@@ -18,7 +20,8 @@ ws.on :message do |msg|
         request_timestamp = data["T"]
         latency = (received_timestamp - Time.at(request_timestamp / 1000.0)).to_f
         latency_samples << latency
-        puts "Latency: #{latency} seconds"
+        #puts "Latency: #{latency} seconds"
+        i += 1
     end
 end
 
@@ -32,10 +35,12 @@ ws.on :open do
 end
 
 begin
-    loop do
+    while true
+        break if i > 100
         sleep 1
     end
 rescue Interrupt
-    average_latency = latency_samples.reduce(:+) / latency_samples.length
-    puts "Average Latency: #{average_latency} seconds"
 end
+
+average_latency = latency_samples.reduce(:+) / latency_samples.length
+puts "Average Latency: #{average_latency} seconds"
